@@ -1,0 +1,31 @@
+{
+  "name": "purging",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "eslint": "./node_modules/.bin/eslint --color --cache ./src",
+    "get-purge-list": "node ./bin/get-ids-to-purge.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dianabarsan/purging.git"
+  },
+  "type": "module",
+  "author": "Diana Barsan",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/dianabarsan/purging/issues"
+  },
+  "homepage": "https://github.com/dianabarsan/purging#readme",
+  "dependencies": {
+    "node-fetch": "^3.3.1"
+  },
+  "devDependencies": {
+    "@medic/eslint-config": "^1.1.0",
+    "eslint": "^8.40.0",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-promise": "^6.1.1"
+  }
+}
