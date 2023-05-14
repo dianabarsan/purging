@@ -3,6 +3,7 @@ import { purgeDoc } from './purge-docs.js';
 
 let serverUrl;
 let purgeDbs;
+const PURGE_BATCH_SIZE = 100;
 
 export const MEDIC_DB_NAME = 'medic';
 export const SENTINEL_DB_NAME = `medic-sentinel`;
@@ -76,6 +77,16 @@ export const getDoc = async (uuid, db = MEDIC_DB_NAME) => {
   }
 };
 
+export const getDocRevs = async (uuids, db) => {
+  const url = getUrl(`/${db}/_changes`, { doc_ids: uuids, style: 'all_docs', filter: '_doc_ids' });
+  const changes = await request({ url });
+  const docRevs = {};
+  changes.results.forEach(change => {
+   docRevs[change.id] = change.changes.map(change => change.rev);
+  });
+  return docRevs;
+}
+
 export const getPurgeDatabases = async () => {
   if (purgeDbs) {
     return purgeDbs;
@@ -128,4 +139,13 @@ export const getTasks = async (uuid) => {
   };
   const result = await request({ url, body, method: 'POST'});
   return result.docs;
+};
+
+export const purgeDocs = async (uuids, database) => {
+  while (uuids.length) {
+    const batch = uuids.splice(0, PURGE_BATCH_SIZE);
+    const docRevs = await getDocRevs(uuids, database);
+    const url = getUrl(`/${database}/_purge`);
+    await request({ url, method: 'POST', body: docRevs });
+  }
 };

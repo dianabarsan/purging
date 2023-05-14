@@ -2,7 +2,10 @@
   "extends": "@medic",
   "parserOptions": {
     "ecmaVersion": 8,
-    "sourceType": "module",
+    "sourceType": "module"
+  },
+  "env": {
+    "node": true
   },
   "plugins": ["promise", "node"],
   "rules": {

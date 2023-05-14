@@ -15,16 +15,25 @@ export const getUrl = (args) => {
   }
 };
 
-export const getFile = (args) => {
-  const prefix = '--file=';
+export const getInputPath = (args) => {
+  const prefix = '--input=';
   const arg = args.find(arg => arg.startsWith(prefix));
   if (!arg) {
-    throw new Error('--file argument is required.');
+    throw new Error('--input argument is required.');
   }
   const filePath = arg.replace(prefix, '');
   if (!fs.existsSync(filePath)) {
-    throw new Error('--file argument points to a file that does not exist.');
+    throw new Error('--input argument points to a file that does not exist.');
   }
   return filePath;
 };
 
+export const getOutputPath = (args) => {
+  const prefix = '--output=';
+  const arg = args.find(arg => arg.startsWith(prefix));
+  if (!arg) {
+    throw new Error('--output argument is required.');
+  }
+  const filePath = arg.replace(prefix, '');
+  return filePath;
+};
