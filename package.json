@@ -7,9 +7,6 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "eslint": "./node_modules/.bin/eslint --color --cache ./src"
   },
-  "bin": {
-    "get-ids": "src/get-ids.js"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/dianabarsan/purging.git"

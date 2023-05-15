@@ -73,9 +73,9 @@ export const request = async ({ url, json = true, ...moreOpts }) => {
   return getResponseData(response, json);
 };
 
-export const getDoc = async (uuid, db = MEDIC_DB_NAME) => {
+export const getDoc = async (uuid, db = MEDIC_DB_NAME, rev) => {
   try {
-    return await request({ url: getUrl(`/${db}/${uuid}`)  });
+    return await request({ url: getUrl(`/${db}/${uuid}`, rev ? { rev } : undefined )  });
   } catch (err) {
     if (err.status === NOT_FOUND_STATUS) {
       return;
@@ -92,10 +92,14 @@ export const getDocRevs = async (uuids, db) => {
   const changes = await request({ url });
   const revs = {};
   const docs = {};
-  changes.results.forEach(change => {
+  for (const change of changes.results) {
     revs[change.id] = change.changes.map(change => change.rev);
-    docs[change.id] = change.changes.map(change => change.doc);
-  });
+    if (revs[change.id].length > 1) {
+      docs[change.id] = await Promise.all(revs[change.id].map(rev => getDoc(change.id, db, rev)));
+    } else {
+      docs[change.id] = [change.doc];
+    }
+  }
   return { revs, docs };
 };
 
@@ -114,7 +118,7 @@ export const getTombstones = async (uuid) => {
   return response.rows.map(row => row.id);
 };
 
-const createMangoIndex = async () => {
+export const createMangoIndex = async () => {
   const url= getUrl(`/${MEDIC_DB_NAME}/_index`);
   const body = {
     index: {
@@ -127,12 +131,13 @@ const createMangoIndex = async () => {
 };
 
 export const getTasks = async (uuid) => {
+  const t = Date.now();
   await createMangoIndex();
   const url = getUrl(`/${MEDIC_DB_NAME}/_find`);
   const body = {
     selector: {
       type: 'task',
-      'emission.id': {
+      'emission._id': {
         '$gt': uuid,
         '$lt': `${uuid}\ufff0`,
       }
@@ -143,6 +148,12 @@ export const getTasks = async (uuid) => {
 };
 
 const backupDocs = async (docs, database) => {
+  try {
+    await request({ url: getUrl(`/${COLD_STORAGE_DB}`), method: 'PUT' });
+  } catch (err) {
+    // this will fail if the database already exists
+  }
+
   const docsToSave = [];
   Object.values(docs).forEach((docs) => {
     docsToSave.push(...docs.map(doc => {
