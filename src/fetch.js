@@ -1,9 +1,9 @@
 import fetch from 'node-fetch';
-import { purgeDoc } from './purge-docs.js';
 
 let serverUrl;
 let purgeDbs;
 const PURGE_BATCH_SIZE = 100;
+const COLD_STORAGE_DB = 'medic-cold-storage';
 
 export const MEDIC_DB_NAME = 'medic';
 export const SENTINEL_DB_NAME = `medic-sentinel`;
@@ -24,13 +24,19 @@ class HTTPResponseError extends Error {
 
 const getResponseData = (response, json) => json ? response.json() : response.text();
 
+const stringifyParam = (key, value) => {
+  if (key.startsWith('start') || key.startsWith('end') || key.startsWith('doc_ids')) {
+    return JSON.stringify(value);
+  }
+  return value;
+};
 const getUrl = (path, searchParams) => {
   const url = new URL(serverUrl.toString());
 
   url.pathname = path;
 
   const params = new URLSearchParams(url.search);
-  searchParams && Object.entries(searchParams).forEach(([key, value]) => params.set(key, JSON.stringify(value)));
+  searchParams && Object.entries(searchParams).forEach(([key, value]) => params.set(key, stringifyParam(key, value)));
   url.search = params.toString();
 
   url.username = '';
@@ -40,7 +46,8 @@ const getUrl = (path, searchParams) => {
 export const request = async ({ url, json = true, ...moreOpts }) => {
   const opts = { ...moreOpts };
   opts.headers = opts.headers || {};
-  opts.headers['Authorization'] = `Basic ${Buffer.from(serverUrl.username + ':' + serverUrl.password, 'binary').toString('base64')}`;
+  opts.headers.Authorization =
+    `Basic ${Buffer.from(serverUrl.username + ':' + serverUrl.password, 'binary').toString('base64')}`;
   if (json) {
     opts.headers = {
       ...opts.headers,
@@ -78,33 +85,27 @@ export const getDoc = async (uuid, db = MEDIC_DB_NAME) => {
 };
 
 export const getDocRevs = async (uuids, db) => {
-  const url = getUrl(`/${db}/_changes`, { doc_ids: uuids, style: 'all_docs', filter: '_doc_ids' });
+  const url = getUrl(
+    `/${db}/_changes`,
+    { doc_ids: uuids, style: 'all_docs', filter: '_doc_ids', include_docs: 'true', attachments: 'true' }
+  );
   const changes = await request({ url });
-  const docRevs = {};
+  const revs = {};
+  const docs = {};
   changes.results.forEach(change => {
-   docRevs[change.id] = change.changes.map(change => change.rev);
+    revs[change.id] = change.changes.map(change => change.rev);
+    docs[change.id] = change.changes.map(change => change.doc);
   });
-  return docRevs;
-}
+  return { revs, docs };
+};
 
 export const getPurgeDatabases = async () => {
   if (purgeDbs) {
     return purgeDbs;
   }
-  purgeDbs = await request({
-    url: getUrl('/_all_dbs', { start_key: `${MEDIC_DB_NAME}-purged-role-`, end_key: `${MEDIC_DB_NAME}-purged-role-\ufff0` }),
-  });
+  const query = { start_key: `${MEDIC_DB_NAME}-purged-role-`, end_key: `${MEDIC_DB_NAME}-purged-role-\ufff0` };
+  purgeDbs = await request({ url: getUrl('/_all_dbs', query) });
   return purgeDbs;
-};
-
-export const purgeFromPurgeDbs = async (uuid) => {
-  const dbs = await getPurgeDatabases();
-  for (const db of dbs) {
-    const doc = await getDoc(`purged:${uuid}`, db);
-    if (doc) {
-      await purgeDoc(doc, db);
-    }
-  }
 };
 
 export const getTombstones = async (uuid) => {
@@ -141,11 +142,30 @@ export const getTasks = async (uuid) => {
   return result.docs;
 };
 
+const backupDocs = async (docs, database) => {
+  const docsToSave = [];
+  Object.values(docs).forEach((docs) => {
+    docsToSave.push(...docs.map(doc => {
+      doc._id = `${database}:${doc._id}:${doc._rev}`;
+      delete doc._rev;
+      return doc;
+    }));
+  });
+  await request({
+    url: getUrl(`/${COLD_STORAGE_DB}/_bulk_docs`),
+    method: 'POST',
+    body: { docs: docsToSave },
+  });
+};
+
 export const purgeDocs = async (uuids, database) => {
   while (uuids.length) {
     const batch = uuids.splice(0, PURGE_BATCH_SIZE);
-    const docRevs = await getDocRevs(uuids, database);
+    const { revs, docs } = await getDocRevs(batch, database);
+
+    await backupDocs(docs, database);
+
     const url = getUrl(`/${database}/_purge`);
-    await request({ url, method: 'POST', body: docRevs });
+    await request({ url, method: 'POST', body: revs });
   }
 };

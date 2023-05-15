@@ -84,4 +84,5 @@ export const input = async (filePath) => {
     const processLine = (line) => collection[dbName].push(line);
     await readIdsFromFile(path.join(filePath, database), processLine);
   }
+  return collection;
 };

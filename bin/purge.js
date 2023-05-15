@@ -10,4 +10,7 @@ fetch.init(url);
 const inputPath = getArgs.getInputPath(process.argv);
 (async () => {
   const idsToPurge = await getIds.input(inputPath);
+  for (const [database, uuids] of Object.entries(idsToPurge)) {
+    await fetch.purgeDocs(uuids, database);
+  }
 })();
