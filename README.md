@@ -1,4 +1,4 @@
-#Cold storage with `_purge`-ing
+# Cold storage with `_purge`-ing
 
 This script implements a solution for cold storage by using CouchDb `_purge`.
 It takes a CSV or text file as an input. The file should have one uuid - representing the `_id` of a document - to be purged on each line.
