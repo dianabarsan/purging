@@ -18,6 +18,7 @@ export const getDocsToPurge = async (uuid) => {
   docsToPurge.push(
     [fetch.MEDIC_DB_NAME, uuid],
     [fetch.SENTINEL_DB_NAME, `${uuid}-info`],
+    [fetch.SENTINEL_DB_NAME, `task:outbound:${uuid}`],
     ...purgeDatabases.map(db => [db, `purged:${uuid}`]),
     ...(await fetch.getTombstones(uuid)).map(id => [fetch.MEDIC_DB_NAME, id]),
   );
