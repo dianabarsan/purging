@@ -1,5 +1,4 @@
 import fs from 'node:fs';
-const args = process.argv;
 
 export const getUrl = (args) => {
   const prefix = '--url=';
@@ -35,5 +34,8 @@ export const getOutputPath = (args) => {
     throw new Error('--output argument is required.');
   }
   const filePath = arg.replace(prefix, '');
+  if (fs.existsSync(filePath) && fs.readdirSync(filePath).length) {
+    throw new Error('--output argument location is not empty.');
+  }
   return filePath;
 };
