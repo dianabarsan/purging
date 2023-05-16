@@ -18,6 +18,8 @@ Another command will backup (create a copy of the document in a secondary databa
 
 NB. The script uses a mango query (and a mango index) to get the list of tasks associated by `source_id` with a `data_record`. Depending on the size of the database, querying using this index for the first time can take a long time. The script has a command to create the index and make one query to speed up command execution.
 
+NB. This script is tailored to the specific needs of Muso, and requirements are subject ot change.
+
 ## Installation
 
 ```
