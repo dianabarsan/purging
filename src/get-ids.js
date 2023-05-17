@@ -25,7 +25,10 @@ export const getDocsToPurge = async (uuid) => {
 
   if (doc.type === 'data_record') {
     const tasks = await fetch.getTasks(uuid);
-    docsToPurge.push(...tasks.map(taskDoc => [fetch.MEDIC_DB_NAME, taskDoc._id]));
+    docsToPurge.push(
+      ...tasks.map(taskDoc => [fetch.MEDIC_DB_NAME, taskDoc._id]),
+      ...tasks.map(taskDoc => purgeDatabases.map(db => [db, `purged:${taskDoc._id}`])).flat(),
+    );
   }
 
   return docsToPurge;
